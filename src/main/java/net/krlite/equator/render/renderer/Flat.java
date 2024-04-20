@@ -349,7 +349,6 @@ public class Flat extends Basic {
 			BufferBuilder builder = Tessellator.getInstance().getBuffer();
 			Matrix4f matrix = matrixStack().peek().getPositionMatrix();
 
-
 			builder.begin(VertexFormat.DrawMode.TRIANGLE_STRIP, state().vertexFormat());
 
 			double xDelta, yDelta;
