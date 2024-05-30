@@ -1,7 +1,8 @@
 package net.krlite.equator.visual.animation.base;
 
-import net.fabricmc.fabric.api.event.Event;
-import net.fabricmc.fabric.api.event.EventFactory;
+import net.krlite.equator.visual.animation.base.events.InterpolationEvents;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.eventbus.api.EventPriority;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
@@ -41,58 +42,6 @@ public abstract class Interpolation<I> implements Runnable {
 					return Objects.equals(value(), target());
 				}
 			};
-		}
-	}
-
-	public interface Callbacks {
-		interface Completion {
-			Event<Completion> EVENT = EventFactory.createArrayBacked(Completion.class, (listeners) -> (interpolation) -> {
-				for (Completion listener : listeners) {
-					listener.onCompletion(interpolation);
-				}
-			});
-
-			void onCompletion(Interpolation<?> interpolation);
-		}
-
-		interface Pause {
-			Event<Pause> EVENT = EventFactory.createArrayBacked(Pause.class, (listeners) -> (interpolation) -> {
-				for (Pause listener : listeners) {
-					listener.onPause(interpolation);
-				}
-			});
-
-			void onPause(Interpolation<?> interpolation);
-		}
-
-		interface Resume {
-			Event<Resume> EVENT = EventFactory.createArrayBacked(Resume.class, (listeners) -> (interpolation) -> {
-				for (Resume listener : listeners) {
-					listener.onResume(interpolation);
-				}
-			});
-
-			void onResume(Interpolation<?> interpolation);
-		}
-
-		interface FrameStart {
-			Event<FrameStart> EVENT = EventFactory.createArrayBacked(FrameStart.class, (listeners) -> (interpolation) -> {
-				for (FrameStart listener : listeners) {
-					listener.onFrameStart(interpolation);
-				}
-			});
-
-			void onFrameStart(Interpolation<?> interpolation);
-		}
-
-		interface FrameEnd {
-			Event<FrameEnd> EVENT = EventFactory.createArrayBacked(FrameEnd.class, (listeners) -> (interpolation) -> {
-				for (FrameEnd listener : listeners) {
-					listener.onFrameEnd(interpolation);
-				}
-			});
-
-			void onFrameEnd(Interpolation<?> interpolation);
 		}
 	}
 
@@ -204,11 +153,11 @@ public abstract class Interpolation<I> implements Runnable {
 	public void run() {
 		if (!isAvailable()) return;
 
-		Callbacks.FrameStart.EVENT.invoker().onFrameStart(this);
+		MinecraftForge.EVENT_BUS.post(new InterpolationEvents.Callbacks.FrameStart(this));
 
 		if (isCompleted() && !states.completed()) {
 			completed(true);
-			Callbacks.Completion.EVENT.invoker().onCompletion(this);
+			MinecraftForge.EVENT_BUS.post(new InterpolationEvents.Callbacks.Completion(this));
 		} else completed(false);
 
 		if (value() != null && target() != null) {
@@ -216,7 +165,7 @@ public abstract class Interpolation<I> implements Runnable {
 			value(interpolate(value(), target()));
 		}
 
-		Callbacks.FrameEnd.EVENT.invoker().onFrameEnd(this);
+		MinecraftForge.EVENT_BUS.post(new InterpolationEvents.Callbacks.FrameEnd(this));
 	}
 
 	public abstract I interpolate(I value, I target);
@@ -229,45 +178,45 @@ public abstract class Interpolation<I> implements Runnable {
 
 	public void pause() {
 		if (isPlaying()) {
-			Callbacks.Pause.EVENT.invoker().onPause(this);
+			MinecraftForge.EVENT_BUS.post(new InterpolationEvents.Callbacks.Pause(this));
 			Objects.requireNonNull(future()).cancel(true);
 		}
 	}
 
 	public void resume() {
 		if (isPaused()) {
-			Callbacks.Resume.EVENT.invoker().onResume(this);
+			MinecraftForge.EVENT_BUS.post(new InterpolationEvents.Callbacks.Resume(this));
 			future(AnimationThreadPoolExecutor.join(this, 0));
 		}
 	}
 
 	public void onCompletion(Runnable runnable) {
-		Callbacks.Completion.EVENT.register((interpolation) -> {
-			if (interpolation == this) runnable.run();
+		MinecraftForge.EVENT_BUS.<InterpolationEvents.Callbacks.Completion>addListener(EventPriority.HIGHEST, event -> {
+			if (event.getInterpolation() == this) runnable.run();
 		});
 	}
 
 	public void onPause(Runnable runnable) {
-		Callbacks.Pause.EVENT.register((interpolation) -> {
-			if (interpolation == this) runnable.run();
+		MinecraftForge.EVENT_BUS.<InterpolationEvents.Callbacks.Pause>addListener(EventPriority.HIGHEST, event -> {
+			if (event.getInterpolation() == this) runnable.run();
 		});
 	}
 
 	public void onResume(Runnable runnable) {
-		Callbacks.Resume.EVENT.register((interpolation) -> {
-			if (interpolation == this) runnable.run();
+		MinecraftForge.EVENT_BUS.<InterpolationEvents.Callbacks.Resume>addListener(EventPriority.HIGHEST, event -> {
+			if (event.getInterpolation() == this) runnable.run();
 		});
 	}
 
 	public void onFrameStart(Runnable runnable) {
-		Callbacks.FrameStart.EVENT.register((interpolation) -> {
-			if (interpolation == this) runnable.run();
+		MinecraftForge.EVENT_BUS.<InterpolationEvents.Callbacks.FrameStart>addListener(EventPriority.HIGHEST, event -> {
+			if (event.getInterpolation() == this) runnable.run();
 		});
 	}
 
 	public void onFrameEnd(Runnable runnable) {
-		Callbacks.FrameEnd.EVENT.register((interpolation) -> {
-			if (interpolation == this) runnable.run();
+		MinecraftForge.EVENT_BUS.<InterpolationEvents.Callbacks.FrameEnd>addListener(EventPriority.HIGHEST, event -> {
+			if (event.getInterpolation() == this) runnable.run();
 		});
 	}
 }

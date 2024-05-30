@@ -1,11 +1,12 @@
 package net.krlite.equator.input;
 
-import net.fabricmc.fabric.api.event.Event;
-import net.fabricmc.fabric.api.event.EventFactory;
 import net.krlite.equator.Equator;
 import net.krlite.equator.math.geometry.flat.Box;
 import net.krlite.equator.math.geometry.flat.Vector;
 import net.minecraft.client.MinecraftClient;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.eventbus.api.Event;
+import org.jetbrains.annotations.ApiStatus;
 import org.lwjgl.glfw.*;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -21,72 +22,78 @@ public class Window {
 	 * Callbacks for window events.
 	 * @see Window
 	 */
-	public static class Callbacks {
+	public static abstract class Callbacks extends Event {
+		@ApiStatus.Internal
+		protected Callbacks() {}
 		/**
 		 * Callback for the {@link Window} close event.
 		 */
-		public interface Close {
-			Event<Close> EVENT = EventFactory.createArrayBacked(Close.class, (listeners) -> () -> {
-				for (Close listener : listeners) {
-					listener.onClose();
-				}
-			});
-
+		public static class Close extends Callbacks {
 			/**
 			 * Called when the window is closed.
 			 */
-			void onClose();
+			@ApiStatus.Internal
+			public Close() {}
 		}
 
 		/**
 		 * Callback for the {@link Window} iconify event.
 		 */
-		public interface Iconify {
-			Event<Iconify> EVENT = EventFactory.createArrayBacked(Iconify.class, (listeners) -> (iconified) -> {
-				for (Iconify listener : listeners) {
-					listener.onIconify(iconified);
-				}
-			});
+		public static class Iconify extends Callbacks {
+			private final boolean iconified;
 
 			/**
 			 * Called when the window is iconified.
 			 * @param iconified	{@code true} if the window is iconified, {@code false} otherwise.
 			 */
-			void onIconify(boolean iconified);
+			@ApiStatus.Internal
+			public Iconify(boolean iconified) {
+				this.iconified = iconified;
+			}
+
+			public boolean isIconified() {
+				return this.iconified;
+			}
 		}
 
 		/**
 		 * Callback for the {@link Window} maximize event.
 		 */
-		public interface Maximize {
-			Event<Maximize> EVENT = EventFactory.createArrayBacked(Maximize.class, (listeners) -> (maximized) -> {
-				for (Maximize listener : listeners) {
-					listener.onMaximize(maximized);
-				}
-			});
+		public static class Maximize extends Callbacks {
+			private final boolean maximized;
 
 			/**
 			 * Called when the window is maximized.
 			 * @param maximized	{@code true} if the window is maximized, {@code false} otherwise.
 			 */
-			void onMaximize(boolean maximized);
+			@ApiStatus.Internal
+			public Maximize(boolean maximized) {
+				this.maximized = maximized;
+			}
+
+			public boolean isMaximized() {
+				return this.maximized;
+			}
 		}
 
 		/**
 		 * Callback for the {@link Window} focus event.
 		 */
-		public interface Focus {
-			Event<Focus> EVENT = EventFactory.createArrayBacked(Focus.class, (listeners) -> (focused) -> {
-				for (Focus listener : listeners) {
-					listener.onFocus(focused);
-				}
-			});
+		public static class Focus extends Callbacks {
+			private final boolean focused;
 
 			/**
 			 * Called when the window is focused.
 			 * @param focused	{@code true} if the window is focused, {@code false} otherwise.
 			 */
-			void onFocus(boolean focused);
+			@ApiStatus.Internal
+			public Focus(boolean focused) {
+				this.focused = focused;
+			}
+
+			public boolean isFocused() {
+				return this.focused;
+			}
 		}
 
 		/**
@@ -94,12 +101,8 @@ public class Window {
 		 * {@link net.krlite.equator.render.frame.FrameInfo.Convertor Scaled Coordinate}.
 		 * @see net.krlite.equator.render.frame.FrameInfo.Convertor
 		 */
-		public interface Move {
-			Event<Move> EVENT = EventFactory.createArrayBacked(Move.class, (listeners) -> (position) -> {
-				for (Move listener : listeners) {
-					listener.onMove(position);
-				}
-			});
+		public static class Move extends Callbacks {
+			private final Vector position;
 
 			/**
 			 * Called when the window is moved.
@@ -107,7 +110,14 @@ public class Window {
 			 * 					{@link net.krlite.equator.render.frame.FrameInfo.Convertor Scaled Coordinate}.
 			 * @see net.krlite.equator.render.frame.FrameInfo.Convertor
 			 */
-			void onMove(Vector position);
+			@ApiStatus.Internal
+			public Move(Vector position) {
+				this.position = position;
+			}
+
+			public Vector getPosition() {
+				return this.position;
+			}
 		}
 
 		/**
@@ -115,36 +125,48 @@ public class Window {
 		 * {@link net.krlite.equator.render.frame.FrameInfo.Convertor Scaled Coordinate}.
 		 * @see net.krlite.equator.render.frame.FrameInfo.Convertor
 		 */
-		public interface Resize {
-			Event<Resize> EVENT = EventFactory.createArrayBacked(Resize.class, (listeners) -> (window) -> {
-				for (Resize listener : listeners) {
-					listener.onResize(window);
-				}
-			});
+		public static class Resize extends Callbacks {
+			private final Box window;
 
 			/**
 			 * Called when the window is resized.
 			 * @param window	The new size of the window.
 			 */
-			void onResize(Box window);
+			@ApiStatus.Internal
+			public Resize(Box window) {
+				this.window = window;
+			}
+
+			public Box getWindow() {
+				return this.window;
+			}
 		}
 
 		/**
 		 * Callback for the {@link Window} content scale event.
 		 */
-		public interface ContentScale {
-			Event<ContentScale> EVENT = EventFactory.createArrayBacked(ContentScale.class, (listeners) -> (xScaling, yScaling) -> {
-				for (ContentScale listener : listeners) {
-					listener.onContentScale(xScaling, yScaling);
-				}
-			});
+		public static class ContentScale extends Callbacks {
+			private final float xScaling;
+			private final float yScaling;
 
 			/**
 			 * Called when the window's content scale is changed.
 			 * @param xScaling	the new {@code x-scaling} of the window.
 			 * @param yScaling	the new {@code y-scaling} of the window.
 			 */
-			void onContentScale(float xScaling, float yScaling);
+			@ApiStatus.Internal
+			public ContentScale(float xScaling, float yScaling) {
+				this.xScaling = xScaling;
+				this.yScaling = yScaling;
+			}
+
+			public float getxScaling() {
+				return this.xScaling;
+			}
+
+			public float getyScaling() {
+				return this.yScaling;
+			}
 		}
 	}
 
@@ -190,7 +212,7 @@ public class Window {
 
 			@Override
 			public void invoke(long window) {
-				Callbacks.Close.EVENT.invoker().onClose();
+				MinecraftForge.EVENT_BUS.post(new Callbacks.Close());
 
 				if (delegate != null) {
 					delegate.invoke(window);
@@ -207,7 +229,7 @@ public class Window {
 
 			@Override
 			public void invoke(long window, boolean iconified) {
-				Callbacks.Iconify.EVENT.invoker().onIconify(iconified);
+				MinecraftForge.EVENT_BUS.post(new Callbacks.Iconify(iconified));
 
 				if (delegate != null) {
 					delegate.invoke(window, iconified);
@@ -224,7 +246,7 @@ public class Window {
 
 			@Override
 			public void invoke(long window, boolean maximized) {
-				Callbacks.Maximize.EVENT.invoker().onMaximize(maximized);
+				MinecraftForge.EVENT_BUS.post(new Callbacks.Maximize(maximized));
 
 				if (delegate != null) {
 					delegate.invoke(window, maximized);
@@ -241,7 +263,7 @@ public class Window {
 
 			@Override
 			public void invoke(long window, boolean focused) {
-				Callbacks.Focus.EVENT.invoker().onFocus(focused);
+				MinecraftForge.EVENT_BUS.post(new Callbacks.Focus(focused));
 
 				if (delegate != null) {
 					delegate.invoke(window, focused);
@@ -258,7 +280,7 @@ public class Window {
 
 			@Override
 			public void invoke(long window, int x, int y) {
-				Callbacks.Move.EVENT.invoker().onMove(Vector.fromCartesian(x, y).fitFromScreen());
+				MinecraftForge.EVENT_BUS.post(new Callbacks.Move(Vector.fromCartesian(x, y).fitFromScreen()));
 
 				if (delegate != null) {
 					delegate.invoke(window, x, y);
@@ -275,7 +297,7 @@ public class Window {
 
 			@Override
 			public void invoke(long window, int width, int height) {
-				Callbacks.Resize.EVENT.invoker().onResize(Box.fromCartesian(width, height).fitFromScreen());
+				MinecraftForge.EVENT_BUS.post(new Callbacks.Resize(Box.fromCartesian(width, height).fitFromScreen()));
 
 				if (delegate != null) {
 					delegate.invoke(window, width, height);
@@ -292,7 +314,7 @@ public class Window {
 
 			@Override
 			public void invoke(long window, float xScaling, float yScaling) {
-				Callbacks.ContentScale.EVENT.invoker().onContentScale(xScaling, yScaling);
+				MinecraftForge.EVENT_BUS.post(new Callbacks.ContentScale(xScaling, yScaling));
 
 				if (delegate != null) {
 					delegate.invoke(window, xScaling, yScaling);

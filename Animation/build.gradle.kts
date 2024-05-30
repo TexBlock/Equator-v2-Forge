@@ -3,7 +3,7 @@ plugins {
 	java
 	idea
 	`maven-publish`
-	alias(libs.plugins.fabric.loom)
+	alias(libs.plugins.architectury.loom)
 }
 
 group = libs.versions.maven.group.get()
@@ -19,8 +19,8 @@ repositories {
 
 dependencies {
 	minecraft(libs.minecraft)
-	mappings(libs.yarn)
-	modImplementation(libs.bundles.fabric)
+	mappings(libs.yarn) { artifact { classifier = "v2" } }
+	forge(libs.forge)
 
 	implementation(project(":Math"))
 	implementation(project(":Visual"))

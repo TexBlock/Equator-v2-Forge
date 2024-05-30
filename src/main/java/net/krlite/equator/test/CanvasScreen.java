@@ -14,6 +14,8 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.eventbus.api.EventPriority;
 
 public class CanvasScreen extends Screen {
 	public CanvasScreen() {
@@ -37,16 +39,16 @@ public class CanvasScreen extends Screen {
 			}
 		});
 
-		Mouse.Callbacks.Click.EVENT.register(((button, action, modifiers) -> {
+		MinecraftForge.EVENT_BUS.<Mouse.Callbacks.Click>addListener(EventPriority.HIGHEST, event -> {
 			if (MinecraftClient.getInstance().currentScreen != this) return;
 
-			if (button == Mouse.LEFT) {
-				if (action.isPress()) {
+			if (event.getButton() == Mouse.LEFT) {
+				if (event.getAction().isPress()) {
 					b = !b;
 					animation.speedNegate();
 				}
 			}
-		}));
+		});
 	}
 
 	/*

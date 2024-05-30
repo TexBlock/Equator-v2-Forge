@@ -1,10 +1,12 @@
 package net.krlite.equator.visual.animation.base;
 
-import net.fabricmc.fabric.api.event.Event;
-import net.fabricmc.fabric.api.event.EventFactory;
 import net.krlite.equator.math.algebra.Curves;
 import net.krlite.equator.math.algebra.Theory;
 import net.krlite.equator.visual.animation.Slice;
+import net.krlite.equator.visual.animation.base.events.AnimationEvents;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.eventbus.api.Event;
+import net.minecraftforge.eventbus.api.EventPriority;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
@@ -66,78 +68,6 @@ public abstract class Animation<A> implements Runnable {
 			animation.defaultSpeedPositive();
 
 			return animation;
-		}
-	}
-
-	public interface Callbacks {
-		interface Play {
-			Event<Play> EVENT = EventFactory.createArrayBacked(Play.class, (listeners) -> (animation) -> {
-				for (Play listener : listeners) {
-					listener.onPlay(animation);
-				}
-			});
-
-			void onPlay(Animation<?> animation);
-		}
-
-		interface Termination {
-			Event<Termination> EVENT = EventFactory.createArrayBacked(Termination.class, (listeners) -> (animation) -> {
-				for (Termination listener : listeners) {
-					listener.onTermination(animation);
-				}
-			});
-
-			void onTermination(Animation<?> animation);
-		}
-
-		interface Pause {
-			Event<Pause> EVENT = EventFactory.createArrayBacked(Pause.class, (listeners) -> (animation) -> {
-				for (Pause listener : listeners) {
-					listener.onPause(animation);
-				}
-			});
-
-			void onPause(Animation<?> animation);
-		}
-
-		interface Resume {
-			Event<Resume> EVENT = EventFactory.createArrayBacked(Resume.class, (listeners) -> (animation) -> {
-				for (Resume listener : listeners) {
-					listener.onResume(animation);
-				}
-			});
-
-			void onResume(Animation<?> animation);
-		}
-
-		interface Loop {
-			Event<Loop> EVENT = EventFactory.createArrayBacked(Loop.class, (listeners) -> (animation) -> {
-				for (Loop listener : listeners) {
-					listener.onLoop(animation);
-				}
-			});
-
-			void onLoop(Animation<?> animation);
-		}
-
-		interface FrameStart {
-			Event<FrameStart> EVENT = EventFactory.createArrayBacked(FrameStart.class, (listeners) -> (animation) -> {
-				for (FrameStart listener : listeners) {
-					listener.onFrameStart(animation);
-				}
-			});
-
-			void onFrameStart(Animation<?> animation);
-		}
-
-		interface FrameEnd {
-			Event<FrameEnd> EVENT = EventFactory.createArrayBacked(FrameEnd.class, (listeners) -> (animation) -> {
-				for (FrameEnd listener : listeners) {
-					listener.onFrameEnd(animation);
-				}
-			});
-
-			void onFrameEnd(Animation<?> animation);
 		}
 	}
 
@@ -374,22 +304,22 @@ public abstract class Animation<A> implements Runnable {
 
 	@Override
 	public void run() {
-		Callbacks.FrameStart.EVENT.invoker().onFrameStart(this);
+		MinecraftForge.EVENT_BUS.post(new AnimationEvents.Callbacks.FrameStart(this));
 
 		if (isCompleted()) {
 			if (looping()) {
 				reset();
-				Callbacks.Loop.EVENT.invoker().onLoop(this);
+				MinecraftForge.EVENT_BUS.post((Event) new AnimationEvents.Callbacks.Loop(this));
 				progress(animate(progress()));
 			} else {
 				terminate();
-				Callbacks.Termination.EVENT.invoker().onTermination(this);
+				MinecraftForge.EVENT_BUS.post((Event) new AnimationEvents.Callbacks.Termination(this));
 			}
 		} else {
 			progress(animate(progress()));
 		}
 
-		Callbacks.FrameEnd.EVENT.invoker().onFrameEnd(this);
+		MinecraftForge.EVENT_BUS.post(new AnimationEvents.Callbacks.FrameEnd(this));
 	}
 
 	protected double animate(double progress) {
@@ -400,14 +330,14 @@ public abstract class Animation<A> implements Runnable {
 
 	public void pause() {
 		if (isPlaying()) {
-			Callbacks.Pause.EVENT.invoker().onPause(this);
+			MinecraftForge.EVENT_BUS.post(new AnimationEvents.Callbacks.Pause(this));
 			Objects.requireNonNull(future()).cancel(true);
 		}
 	}
 
 	public void resume() {
 		if (isPaused()) {
-			Callbacks.Resume.EVENT.invoker().onResume(this);
+			MinecraftForge.EVENT_BUS.post(new AnimationEvents.Callbacks.Resume(this));
 			future(AnimationThreadPoolExecutor.join(this, 0));
 		}
 	}
@@ -420,7 +350,7 @@ public abstract class Animation<A> implements Runnable {
 	public void play() {
 		if (!isPlaying()) {
 			reset();
-			Callbacks.Play.EVENT.invoker().onPlay(this);
+			MinecraftForge.EVENT_BUS.post(new AnimationEvents.Callbacks.Play(this));
 			future(AnimationThreadPoolExecutor.join(this, 0));
 		}
 	}
@@ -440,44 +370,44 @@ public abstract class Animation<A> implements Runnable {
 	}
 
 	public void onPlay(Runnable runnable) {
-		Callbacks.Play.EVENT.register((animation) -> {
-			if (animation == this) runnable.run();
+		MinecraftForge.EVENT_BUS.<AnimationEvents.Callbacks.Play>addListener(EventPriority.HIGHEST, event -> {
+			if (event.getAnimation() == this) runnable.run();
 		});
 	}
 
 	public void onTermination(Runnable runnable) {
-		Callbacks.Termination.EVENT.register((animation) -> {
-			if (animation == this) runnable.run();
+		MinecraftForge.EVENT_BUS.<AnimationEvents.Callbacks.Termination>addListener(EventPriority.HIGHEST, event -> {
+			if (event.getAnimation() == this) runnable.run();
 		});
 	}
 
 	public void onPause(Runnable runnable) {
-		Callbacks.Pause.EVENT.register((animation) -> {
-			if (animation == this) runnable.run();
+		MinecraftForge.EVENT_BUS.<AnimationEvents.Callbacks.Pause>addListener(EventPriority.HIGHEST, event -> {
+			if (event.getAnimation() == this) runnable.run();
 		});
 	}
 
 	public void onResume(Runnable runnable) {
-		Callbacks.Resume.EVENT.register((animation) -> {
-			if (animation == this) runnable.run();
+		MinecraftForge.EVENT_BUS.<AnimationEvents.Callbacks.Resume>addListener(EventPriority.HIGHEST, event -> {
+			if (event.getAnimation() == this) runnable.run();
 		});
 	}
 
 	public void onLoop(Runnable runnable) {
-		Callbacks.Loop.EVENT.register((animation) -> {
-			if (animation == this) runnable.run();
+		MinecraftForge.EVENT_BUS.<AnimationEvents.Callbacks.Loop>addListener(EventPriority.HIGHEST, event -> {
+			if (event.getAnimation() == this) runnable.run();
 		});
 	}
 
 	public void onFrameStart(Runnable runnable) {
-		Callbacks.FrameStart.EVENT.register((animation) -> {
-			if (animation == this) runnable.run();
+		MinecraftForge.EVENT_BUS.<AnimationEvents.Callbacks.FrameStart>addListener(EventPriority.HIGHEST, event -> {
+			if (event.getAnimation() == this) runnable.run();
 		});
 	}
 
 	public void onFrameEnd(Runnable runnable) {
-		Callbacks.FrameEnd.EVENT.register((animation) -> {
-			if (animation == this) runnable.run();
+		MinecraftForge.EVENT_BUS.<AnimationEvents.Callbacks.FrameEnd>addListener(EventPriority.HIGHEST, event -> {
+			if (event.getAnimation() == this) runnable.run();
 		});
 	}
 

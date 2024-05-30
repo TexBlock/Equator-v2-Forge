@@ -1,13 +1,14 @@
 package net.krlite.equator.input;
 
-import net.fabricmc.fabric.api.event.Event;
-import net.fabricmc.fabric.api.event.EventFactory;
 import net.krlite.equator.Equator;
 import net.krlite.equator.math.geometry.flat.Vector;
 import net.krlite.equator.render.RenderManager;
 import net.krlite.equator.render.frame.FrameInfo;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.Identifier;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.eventbus.api.Event;
+import org.jetbrains.annotations.ApiStatus;
 import org.lwjgl.glfw.*;
 
 import java.nio.file.Path;
@@ -144,16 +145,16 @@ public enum Mouse {
 	 * Callbacks for mouse events.
 	 * @see Mouse
 	 */
-	public static class Callbacks {
+	public static abstract class Callbacks extends Event {
+		@ApiStatus.Internal
+		protected Callbacks() {}
 		/**
 		 * Callback for the {@link Mouse} click event.
 		 */
-		public interface Click {
-			Event<Click> EVENT = EventFactory.createArrayBacked(Click.class, (listeners) -> (button, action, modifiers) -> {
-				for (Click listener : listeners) {
-					listener.onClick(button, action, modifiers);
-				}
-			});
+		public static class Click extends Callbacks {
+			private final Mouse button;
+			private final Action action;
+			private final Keyboard.Modifier[] modifiers;
 
 			/**
 			 * Called when a mouse button is pressed or released.
@@ -161,7 +162,24 @@ public enum Mouse {
 			 * @param action	the action that was performed.
 			 * @param modifiers	the modifiers that were pressed.
 			 */
-			void onClick(Mouse button, Action action, Keyboard.Modifier[] modifiers);
+			@ApiStatus.Internal
+			public Click(Mouse button, Action action, Keyboard.Modifier[] modifiers) {
+				this.button = button;
+				this.action = action;
+				this.modifiers = modifiers;
+			}
+
+			public Mouse getButton() {
+				return this.button;
+			}
+
+			public Action getAction() {
+				return this.action;
+			}
+
+			public Keyboard.Modifier[] getModifiers() {
+				return this.modifiers;
+			}
 		}
 
 		/**
@@ -169,12 +187,8 @@ public enum Mouse {
 		 * {@link net.krlite.equator.render.frame.FrameInfo.Convertor Scaled Coordinate}.
 		 * @see net.krlite.equator.render.frame.FrameInfo.Convertor
 		 */
-		public interface Scroll {
-			Event<Scroll> EVENT = EventFactory.createArrayBacked(Scroll.class, (listeners) -> (scroll) -> {
-				for (Scroll listener : listeners) {
-					listener.onScroll(scroll);
-				}
-			});
+		public static class Scroll extends Callbacks {
+			private final Vector scroll;
 
 			/**
 			 * Called when the mouse wheel is scrolled.
@@ -182,7 +196,14 @@ public enum Mouse {
 			 *                  {@link net.krlite.equator.render.frame.FrameInfo.Convertor Scaled Coordinate}.
 			 * @see net.krlite.equator.render.frame.FrameInfo.Convertor
 			 */
-			void onScroll(Vector scroll);
+			@ApiStatus.Internal
+			public Scroll(Vector scroll) {
+				this.scroll = scroll;
+			}
+
+			public Vector getScroll() {
+				return this.scroll;
+			}
 		}
 
 		/**
@@ -190,12 +211,9 @@ public enum Mouse {
 		 * {@link net.krlite.equator.render.frame.FrameInfo.Convertor Scaled Coordinate}.
 		 * @see net.krlite.equator.render.frame.FrameInfo.Convertor
 		 */
-		public interface Drag {
-			Event<Drag> EVENT = EventFactory.createArrayBacked(Drag.class, (listeners) -> (button, position) -> {
-				for (Drag listener : listeners) {
-					listener.onDrag(button, position);
-				}
-			});
+		public static class Drag extends Callbacks {
+			private final Mouse button;
+			private final Vector position;
 
 			/**
 			 * Called when the mouse is dragged.
@@ -204,25 +222,46 @@ public enum Mouse {
 			 * 					{@link net.krlite.equator.render.frame.FrameInfo.Convertor Scaled Coordinate}.
 			 * @see net.krlite.equator.render.frame.FrameInfo.Convertor
 			 */
-			void onDrag(Mouse button, Vector position);
+			@ApiStatus.Internal
+			public Drag(Mouse button, Vector position) {
+				this.button = button;
+				this.position = position;
+			}
+
+			public Mouse getButton() {
+				return this.button;
+			}
+
+			public Vector getPosition() {
+				return this.position;
+			}
 		}
 
 		/**
 		 * Callback for the {@link Mouse} drop event.
 		 */
-		public interface Drop {
-			Event<Drop> EVENT = EventFactory.createArrayBacked(Drop.class, (listeners) -> (count, paths) -> {
-				for (Drop listener : listeners) {
-					listener.onDrop(count, paths);
-				}
-			});
+		public static class Drop extends Callbacks {
+			private final int count;
+			private final Path[] paths;
 
 			/**
 			 * Called when files are dropped onto the window.
 			 * @param count	the number of files dropped.
 			 * @param paths	the paths of the files dropped.
 			 */
-			void onDrop(int count, Path[] paths);
+			@ApiStatus.Internal
+			public Drop(int count, Path[] paths) {
+				this.count = count;
+				this.paths = paths;
+			}
+
+			public int getCount() {
+				return this.count;
+			}
+
+			public Path[] getPaths() {
+				return this.paths;
+			}
 		}
 
 		/**
@@ -230,12 +269,8 @@ public enum Mouse {
 		 * {@link net.krlite.equator.render.frame.FrameInfo.Convertor Scaled Coordinate}.
 		 * @see net.krlite.equator.render.frame.FrameInfo.Convertor
 		 */
-		public interface Move {
-			Event<Move> EVENT = EventFactory.createArrayBacked(Move.class, (listeners) -> (position) -> {
-				for (Move listener : listeners) {
-					listener.onMove(position);
-				}
-			});
+		public static class Move extends Callbacks {
+			private final Vector position;
 
 			/**
 			 * Called when the mouse is moved.
@@ -243,24 +278,34 @@ public enum Mouse {
 			 * 					{@link net.krlite.equator.render.frame.FrameInfo.Convertor Scaled Coordinate}.
 			 * @see net.krlite.equator.render.frame.FrameInfo.Convertor
 			 */
-			void onMove(Vector position);
+			@ApiStatus.Internal
+			public Move(Vector position) {
+				this.position = position;
+			}
+
+			public Vector getPosition() {
+				return this.position;
+			}
 		}
 
 		/**
 		 * Callback for the {@link Mouse} enter event.
 		 */
-		public interface Enter {
-			Event<Enter> EVENT = EventFactory.createArrayBacked(Enter.class, (listeners) -> (entered) -> {
-				for (Enter listener : listeners) {
-					listener.onEnter(entered);
-				}
-			});
+		public static class Enter extends Callbacks {
+			private final boolean entered;
 
 			/**
 			 * Called when the mouse enters or leaves the window.
 			 * @param entered	whether the mouse entered the window.
 			 */
-			void onEnter(boolean entered);
+			@ApiStatus.Internal
+			public Enter(boolean entered) {
+				this.entered = entered;
+			}
+
+			public boolean isEntered() {
+				return this.entered;
+			}
 		}
 	}
 
@@ -338,7 +383,7 @@ public enum Mouse {
 
 			@Override
 			public void invoke(long window, int button, int action, int modifiers) {
-				Callbacks.Click.EVENT.invoker().onClick(Mouse.getButton(button), Action.getAction(action), Keyboard.Modifier.getModifiers(modifiers));
+				MinecraftForge.EVENT_BUS.post(new Callbacks.Click(Mouse.getButton(button), Action.getAction(action), Keyboard.Modifier.getModifiers(modifiers)));
 
 				if (delegate != null) {
 					delegate.invoke(window, button, action, modifiers);
@@ -355,7 +400,7 @@ public enum Mouse {
 
 			@Override
 			public void invoke(long window, double horizontal, double vertical) {
-				Callbacks.Scroll.EVENT.invoker().onScroll(Vector.fromCartesian(horizontal, vertical).fitFromScreen());
+				MinecraftForge.EVENT_BUS.post(new Callbacks.Scroll(Vector.fromCartesian(horizontal, vertical).fitFromScreen()));
 
 				if (delegate != null) {
 					delegate.invoke(window, horizontal, vertical);
@@ -377,7 +422,7 @@ public enum Mouse {
 					paths[i] = Paths.get(GLFWDropCallback.getName(names, i));
 				}
 
-				Callbacks.Drop.EVENT.invoker().onDrop(count, paths);
+				MinecraftForge.EVENT_BUS.post(new Callbacks.Drop(count, paths));
 
 				if (delegate != null) {
 					delegate.invoke(window, count, names);
@@ -394,8 +439,8 @@ public enum Mouse {
 
 			@Override
 			public void invoke(long window, double x, double y) {
-				Callbacks.Move.EVENT.invoker().onMove(Vector.fromCartesian(x, y).fitFromScreen());
-				Arrays.stream(values()).filter(Mouse::isDown).forEach(button -> Callbacks.Drag.EVENT.invoker().onDrag(button, Vector.fromCartesian(x, y).fitFromScreen()));
+				MinecraftForge.EVENT_BUS.post(new Callbacks.Move(Vector.fromCartesian(x, y).fitFromScreen()));
+				Arrays.stream(values()).filter(Mouse::isDown).forEach(button -> MinecraftForge.EVENT_BUS.post(new Callbacks.Drag(button, Vector.fromCartesian(x, y).fitFromScreen())));
 
 				if (delegate != null) {
 					delegate.invoke(window, x, y);
@@ -412,7 +457,7 @@ public enum Mouse {
 
 			@Override
 			public void invoke(long window, boolean entered) {
-				Callbacks.Enter.EVENT.invoker().onEnter(entered);
+				MinecraftForge.EVENT_BUS.post(new Callbacks.Enter(entered));
 
 				if (delegate != null) {
 					delegate.invoke(window, entered);

@@ -1,9 +1,10 @@
 package net.krlite.equator.input;
 
-import net.fabricmc.fabric.api.event.Event;
-import net.fabricmc.fabric.api.event.EventFactory;
 import net.krlite.equator.Equator;
 import net.minecraft.client.MinecraftClient;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.eventbus.api.Event;
+import org.jetbrains.annotations.ApiStatus;
 import org.lwjgl.glfw.*;
 
 import java.util.ArrayList;
@@ -305,16 +306,17 @@ public enum Keyboard {
 	 * Callbacks for keyboard events.
 	 * @see Keyboard
 	 */
-	public static class Callbacks {
+	public static abstract class Callbacks extends Event {
+		@ApiStatus.Internal
+		protected Callbacks() {}
 		/**
 		 * Callback for the {@link Keyboard} key event.
 		 */
-		public interface Key {
-			Event<Key> EVENT = EventFactory.createArrayBacked(Key.class, (listeners) -> (key, scanCode, action, modifiers) -> {
-				for (Key listener : listeners) {
-					listener.onKey(key, scanCode, action, modifiers);
-				}
-			});
+		public static class Key extends Callbacks {
+			private final Keyboard key;
+			private final int scanCode;
+			private final Action action;
+			private final Modifier[] modifiers;
 
 			/**
 			 * Called when a key is pressed, released or repeated.
@@ -323,25 +325,56 @@ public enum Keyboard {
 			 * @param action	the action that was performed.
 			 * @param modifiers	the modifiers that were pressed.
 			 */
-			void onKey(Keyboard key, int scanCode, Action action, Modifier[] modifiers);
+			@ApiStatus.Internal
+			public Key(Keyboard key, int scanCode, Action action, Modifier[] modifiers) {
+				this.key = key;
+				this.scanCode = scanCode;
+				this.action = action;
+				this.modifiers = modifiers;
+			}
+
+			public Keyboard getKey() {
+				return this.key;
+			}
+
+			public int getScanCode() {
+				return this.scanCode;
+			}
+
+			public Action getAction() {
+				return this.action;
+			}
+
+			public Modifier[] getModifiers() {
+				return this.modifiers;
+			}
 		}
 
 		/**
 		 * Callback for the {@link Keyboard} char event, can be used for text input.
 		 */
-		public interface Char {
-			Event<Char> EVENT = EventFactory.createArrayBacked(Char.class, (listeners) -> (chars, modifiers) -> {
-				for (Char listener : listeners) {
-					listener.onChar(chars, modifiers);
-				}
-			});
+		public static class Char extends Callbacks {
+			private final char[] chars;
+			private final Modifier[] modifiers;
 
 			/**
 			 * Called when a character is input.
 			 * @param chars		the characters that were input.
 			 * @param modifiers	the modifiers that were pressed.
 			 */
-			void onChar(char[] chars, Modifier[] modifiers);
+			@ApiStatus.Internal
+			public Char(char[] chars, Modifier[] modifiers) {
+				this.chars = chars;
+				this.modifiers = modifiers;
+			}
+
+			public char[] getChars() {
+				return this.chars;
+			}
+
+			public Modifier[] getModifiers() {
+				return this.modifiers;
+			}
 		}
 	}
 
@@ -421,7 +454,7 @@ public enum Keyboard {
 
 			@Override
 			public void invoke(long window, int key, int scancode, int action, int modifiers) {
-				Callbacks.Key.EVENT.invoker().onKey(Keyboard.getKey(key), scancode, Action.getAction(action), Modifier.getModifiers(modifiers));
+				MinecraftForge.EVENT_BUS.post(new Callbacks.Key(Keyboard.getKey(key), scancode, Action.getAction(action), Modifier.getModifiers(modifiers)));
 
 				if (delegate != null) {
 					delegate.invoke(window, key, scancode, action, modifiers);
@@ -438,7 +471,7 @@ public enum Keyboard {
 
 			@Override
 			public void invoke(long window, int codePoint, int modifiers) {
-				Callbacks.Char.EVENT.invoker().onChar(Character.toChars(codePoint), Modifier.getModifiers(modifiers));
+				MinecraftForge.EVENT_BUS.post(new Callbacks.Char(Character.toChars(codePoint), Modifier.getModifiers(modifiers)));
 
 				if (delegate != null) {
 					delegate.invoke(window, codePoint, modifiers);
